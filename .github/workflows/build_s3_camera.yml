@@ -29,21 +29,22 @@ jobs:
         repository: espressif/esp32-camera
         path: micropython/ports/esp32/components/esp32-camera
 
-    # 4. 【核心修复】使用官方 Action 在云端一键安装 ESP-IDF 编译环境！
+    # 4. 【核心修复】指定云端直接进入正确的子目录配置环境
     - name: Setup ESP-IDF Environment
       uses: espressif/esp-idf-ci-action@v1
       with:
         esp_idf_version: 'v5.1.2'
         target: 'esp32s3'
+        path: 'micropython/ports/esp32'  # 强制指定在 esp32 目录下安装环境
 
-    # 5. 在配置好的环境里，全速开始编译！
+    # 5. 【核心修复】绑定路径，直接在正确的子目录里编译
     - name: Compile MicroPython with Camera
       run: |
-        cd micropython/ports/esp32
         make submodules
         make BOARD=ESP32_GENERIC_S3 USER_C_MODULES=${{ github.workspace }}/micropython-camera-driver/src/micropython.cmake -j4
+      working-directory: micropython/ports/esp32  # 这一行是关键，它强制云端在这个文件夹里干活！
 
-    # 6. 把编译好的固件打包成可下载的压缩包
+    # 6. 上传固件成品
     - name: Upload Firmware
       uses: actions/upload-artifact@v4
       with:
