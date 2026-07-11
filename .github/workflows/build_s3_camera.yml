@@ -9,44 +9,43 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
+    # 1. 拉取 MicroPython 主源码
     - name: Checkout MicroPython
       uses: actions/checkout@v4
       with:
         path: micropython
 
+    # 2. 拉取摄像头驱动 Python 绑定库
     - name: Checkout Camera Driver Module
       uses: actions/checkout@v4
       with:
         repository: lemariva/micropython-camera-driver
         path: micropython-camera-driver
 
+    # 3. 拉取 ESP32 底层硬件驱动库
     - name: Checkout ESP32 Hardware Driver
       uses: actions/checkout@v4
       with:
         repository: espressif/esp32-camera
         path: micropython/ports/esp32/components/esp32-camera
 
+    # 4. 【核心大改】使用 v2 版本的官方 Action，并升级到 v5.3 的 ESP-IDF
     - name: Setup ESP-IDF Environment
-      uses: espressif/esp-idf-ci-action@v1
+      uses: espressif/esp-idf-ci-action@v2
       with:
-        esp_idf_version: 'v5.1.2'
+        esp_idf_version: 'v5.3'
         target: 'esp32s3'
         path: 'micropython/ports/esp32'
 
-    # 【终极绝招】直接禁用损坏的组件管理器
-    - name: Disable corrupted component manager and clean cache
-      run: |
-        rm -rf lockfiles
-        rm -rf managed_components
-        export IDF_COMPONENT_MANAGER=0
-      working-directory: micropython/ports/esp32
-
+    # 5. 开始在全新的 5.3 环境里编译
     - name: Compile MicroPython with Camera
       run: |
+        rm -rf lockfiles managed_components
         make submodules
         make BOARD=ESP32_GENERIC_S3 USER_C_MODULES=${{ github.workspace }}/micropython-camera-driver/src/micropython.cmake -j4
       working-directory: micropython/ports/esp32
 
+    # 6. 上传固件成品
     - name: Upload Firmware
       uses: actions/upload-artifact@v4
       with:
