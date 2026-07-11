@@ -15,33 +15,35 @@ jobs:
       with:
         path: micropython
 
-    # 2. 拉取【核心修改】：LeMaRiva 的摄像头驱动 Python 绑定库
+    # 2. 拉取官方摄像头驱动 Python 绑定库
     - name: Checkout Camera Driver Module
       uses: actions/checkout@v4
       with:
         repository: lemariva/micropython-camera-driver
         path: micropython-camera-driver
 
-    # 3. 拉取底层 ESP32 硬件驱动库
+    # 3. 拉取 ESP32 底层硬件驱动库
     - name: Checkout ESP32 Hardware Driver
       uses: actions/checkout@v4
       with:
         repository: espressif/esp32-camera
         path: micropython/ports/esp32/components/esp32-camera
 
-    # 4. 配置依赖（云端编译不需要本地环境，速度飞快）
+    # 4. 【核心修复】使用官方 Action 在云端一键安装 ESP-IDF 编译环境！
     - name: Setup ESP-IDF Environment
-      run: |
-        cd micropython/ports/esp32
-        make submodules
+      uses: espressif/esp-idf-ci-action@v1
+      with:
+        esp_idf_version: 'v5.1.2'
+        target: 'esp32s3'
 
-    # 5. 开始云端全速编译
+    # 5. 在配置好的环境里，全速开始编译！
     - name: Compile MicroPython with Camera
       run: |
         cd micropython/ports/esp32
+        make submodules
         make BOARD=ESP32_GENERIC_S3 USER_C_MODULES=${{ github.workspace }}/micropython-camera-driver/src/micropython.cmake -j4
 
-    # 6. 把编译好的 .bin 固件生成下载链接
+    # 6. 把编译好的固件打包成可下载的压缩包
     - name: Upload Firmware
       uses: actions/upload-artifact@v4
       with:
