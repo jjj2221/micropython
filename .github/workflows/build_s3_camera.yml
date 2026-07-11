@@ -29,23 +29,29 @@ jobs:
         repository: espressif/esp32-camera
         path: micropython/ports/esp32/components/esp32-camera
 
-    # 4. 【核心修复】指定云端直接进入正确的子目录配置环境
+    # 4. 【核心修复】配置编译环境
     - name: Setup ESP-IDF Environment
       uses: espressif/esp-idf-ci-action@v1
       with:
         esp_idf_version: 'v5.1.2'
         target: 'esp32s3'
-        path: 'micropython/ports/esp32'  # 强制指定在 esp32 目录下安装环境
+        path: 'micropython/ports/esp32'
 
-    # 5. 【核心修复】绑定路径，直接在正确的子目录里编译
+    # 5. 【终极清理】直接删掉损坏的依赖锁和组件目录，强迫云端彻底刷新
+    - name: Clean corrupted lockfiles and components
+      run: |
+        rm -rf lockfiles
+        rm -rf managed_components
+      working-directory: micropython/ports/esp32
+
+    # 6. 【开始编译】从干净的镜像开始跑
     - name: Compile MicroPython with Camera
       run: |
-        rm -f lockfiles/dependencies.lock.esp32s3
         make submodules
         make BOARD=ESP32_GENERIC_S3 USER_C_MODULES=${{ github.workspace }}/micropython-camera-driver/src/micropython.cmake -j4
       working-directory: micropython/ports/esp32
 
-    # 6. 上传固件成品
+    # 7. 上传固件成品
     - name: Upload Firmware
       uses: actions/upload-artifact@v4
       with:
