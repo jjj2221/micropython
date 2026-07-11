@@ -1,0 +1,37 @@
+name: Build Custom ESP32-S3 Camera MicroPython
+
+on:
+  push:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout MicroPython
+      uses: actions/checkout@v4
+      with:
+        path: micropython
+
+    - name: Checkout Camera Driver
+      uses: actions/checkout@v4
+      with:
+        repository: espressif/esp32-camera
+        path: micropython/ports/esp32/components/esp32-camera
+
+    - name: Setup ESP-IDF Environment
+      run: |
+        cd micropython/ports/esp32
+        make submodules
+
+    - name: Compile MicroPython with Camera
+      run: |
+        cd micropython/ports/esp32
+        make BOARD=ESP32_GENERIC_S3 USER_C_MODULES=${{ github.workspace }}/micropython-camera-driver/src/micropython.cmake -j4
+
+    - name: Upload Firmware
+      uses: actions/upload-artifact@v4
+      with:
+        name: micropython-s3-camera-firmware
+        path: micropython/ports/esp32/build-ESP32_GENERIC_S3/firmware.bin
