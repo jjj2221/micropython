@@ -9,27 +9,23 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-    # 1. 拉取 MicroPython 主源码
     - name: Checkout MicroPython
       uses: actions/checkout@v4
       with:
         path: micropython
 
-    # 2. 拉取官方摄像头驱动 Python 绑定库
     - name: Checkout Camera Driver Module
       uses: actions/checkout@v4
       with:
         repository: lemariva/micropython-camera-driver
         path: micropython-camera-driver
 
-    # 3. 拉取 ESP32 底层硬件驱动库
     - name: Checkout ESP32 Hardware Driver
       uses: actions/checkout@v4
       with:
         repository: espressif/esp32-camera
         path: micropython/ports/esp32/components/esp32-camera
 
-    # 4. 【核心修复】配置编译环境
     - name: Setup ESP-IDF Environment
       uses: espressif/esp-idf-ci-action@v1
       with:
@@ -37,21 +33,20 @@ jobs:
         target: 'esp32s3'
         path: 'micropython/ports/esp32'
 
-    # 5. 【终极清理】直接删掉损坏的依赖锁和组件目录，强迫云端彻底刷新
-    - name: Clean corrupted lockfiles and components
+    # 【终极绝招】直接禁用损坏的组件管理器
+    - name: Disable corrupted component manager and clean cache
       run: |
         rm -rf lockfiles
         rm -rf managed_components
+        export IDF_COMPONENT_MANAGER=0
       working-directory: micropython/ports/esp32
 
-    # 6. 【开始编译】从干净的镜像开始跑
     - name: Compile MicroPython with Camera
       run: |
         make submodules
         make BOARD=ESP32_GENERIC_S3 USER_C_MODULES=${{ github.workspace }}/micropython-camera-driver/src/micropython.cmake -j4
       working-directory: micropython/ports/esp32
 
-    # 7. 上传固件成品
     - name: Upload Firmware
       uses: actions/upload-artifact@v4
       with:
