@@ -40,9 +40,10 @@ jobs:
     # 5. 【核心修复】绑定路径，直接在正确的子目录里编译
     - name: Compile MicroPython with Camera
       run: |
+        rm -f lockfiles/dependencies.lock.esp32s3
         make submodules
         make BOARD=ESP32_GENERIC_S3 USER_C_MODULES=${{ github.workspace }}/micropython-camera-driver/src/micropython.cmake -j4
-      working-directory: micropython/ports/esp32  # 这一行是关键，它强制云端在这个文件夹里干活！
+      working-directory: micropython/ports/esp32
 
     # 6. 上传固件成品
     - name: Upload Firmware
