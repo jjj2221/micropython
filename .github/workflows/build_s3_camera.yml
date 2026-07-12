@@ -29,15 +29,16 @@ jobs:
         repository: espressif/esp32-camera
         path: micropython/ports/esp32/components/esp32-camera
 
-    # 4. 【核心大改】使用 v2 版本的官方 Action，并升级到 v5.3 的 ESP-IDF
+    # 4. 设置 ESP-IDF 编译环境 (修正了缩进对齐，保持 @v1)
     - name: Setup ESP-IDF Environment
-      uses: espressif/esp-idf-ci-action@v2
+      uses: espressif/esp-idf-ci-action@v1
       with:
-        esp_idf_version: 'v5.3'
+        esp_idf_version: 'v5.1.2'
         target: 'esp32s3'
         path: 'micropython/ports/esp32'
+        sdkconfig_options: 'CONFIG_ESP32S3_DEFAULT_PSRAM_OPI=y'
 
-    # 5. 开始在全新的 5.3 环境里编译
+    # 5. 开始云端全速编译
     - name: Compile MicroPython with Camera
       run: |
         rm -rf lockfiles managed_components
