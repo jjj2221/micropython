@@ -44,10 +44,10 @@ jobs:
         echo "IDF_PATH=$(pwd)" >> $GITHUB_ENV
         echo "$(pwd)/export.sh" >> $GITHUB_PATH
 
-    # 6. 开始最终编译 (此时 PSRAM 配置完美写入，彻底解决引脚冲突)
+    # 6. 开始最终编译
     - name: Compile MicroPython with Camera
       run: |
-        cd micropython/ports/esp32
+        rm -rf lockfiles managed_components
         make submodules
         make BOARD=ESP32_GENERIC_S3 USER_C_MODULES=${{ github.workspace }}/micropython-camera-driver/src/micropython.cmake -j4
       working-directory: micropython/ports/esp32
