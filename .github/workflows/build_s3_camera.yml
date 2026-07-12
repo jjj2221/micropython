@@ -9,50 +9,45 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-    # 1. 拉取 MicroPython
+    # 1. 拉取微Python主仓库
     - name: Checkout MicroPython
       uses: actions/checkout@v4
       with:
         path: micropython
 
-    # 2. 拉取 摄像头驱动绑定库
+    # 2. 拉取摄像头驱动绑定层
     - name: Checkout Camera Driver Module
       uses: actions/checkout@v4
       with:
         repository: lemariva/micropython-camera-driver
         path: micropython-camera-driver
 
-    # 3. 拉取 ESP32 底层硬件驱动库
+    # 3. 拉取底层硬件驱动库
     - name: Checkout ESP32 Hardware Driver
       uses: actions/checkout@v4
       with:
         repository: espressif/esp32-camera
         path: micropython/ports/esp32/components/esp32-camera
 
-    # 4. 【核心步骤】把开启 OPI PSRAM 的配置写进源码目录，让编译器自动读取
-    - name: Write OPI PSRAM configuration
-      run: |
-        mkdir -p micropython/ports/esp32/boards/ESP32_GENERIC_S3
-        echo "CONFIG_ESP32S3_DEFAULT_PSRAM_OPI=y" > micropython/ports/esp32/boards/ESP32_GENERIC_S3/sdkconfig.defaults
+    # 4. 【核心】使用官方稳定 Action 一键配置环境
+    - name: Setup ESP-IDF Environment
+      uses: espressif/esp-idf-ci-action@v1
+      with:
+        esp_idf_version: 'v5.1.2'
+        target: 'esp32s3'
+        path: 'micropython/ports/esp32'
 
-    # 5. 手动安装最可靠的 ESP-IDF 环境 (跳过报错的Action，直接用官方的本地安装脚本)
-    - name: Install ESP-IDF manually
+    # 5. 【关键】不再依赖不支持的参数，直接写入配置文件开启 OPI PSRAM
+    - name: Enable OPI PSRAM and Compile
       run: |
-        git clone -b v5.1.2 https://github.com/espressif/esp-idf.git
-        cd esp-idf
-        ./install.sh all
-        echo "IDF_PATH=$(pwd)" >> $GITHUB_ENV
-        echo "$(pwd)/export.sh" >> $GITHUB_PATH
-
-    # 6. 开始最终编译
-    - name: Compile MicroPython with Camera
-      run: |
-        rm -rf lockfiles managed_components
+        cd micropython/ports/esp32
+        # 创建配置文件，强制开启 OPI 内存模式，释放 D0-D7 引脚
+        echo "CONFIG_ESP32S3_DEFAULT_PSRAM_OPI=y" > boards/ESP32_GENERIC_S3/sdkconfig.defaults
+        # 开始全速编译
         make submodules
         make BOARD=ESP32_GENERIC_S3 USER_C_MODULES=${{ github.workspace }}/micropython-camera-driver/src/micropython.cmake -j4
-      working-directory: micropython/ports/esp32
 
-    # 7. 下载成品
+    # 6. 上传最终产物
     - name: Upload Firmware
       uses: actions/upload-artifact@v4
       with:
