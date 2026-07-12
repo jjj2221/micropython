@@ -9,13 +9,13 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-    # 1. 拉取 MicroPython 主源码
+    # 1. 拉取 MicroPython
     - name: Checkout MicroPython
       uses: actions/checkout@v4
       with:
         path: micropython
 
-    # 2. 拉取摄像头驱动 Python 绑定库
+    # 2. 拉取 摄像头驱动绑定库
     - name: Checkout Camera Driver Module
       uses: actions/checkout@v4
       with:
@@ -29,26 +29,32 @@ jobs:
         repository: espressif/esp32-camera
         path: micropython/ports/esp32/components/esp32-camera
 
-    # 4. 设置 ESP-IDF 编译环境 (修正了缩进对齐，保持 @v1)
-    - name: Setup ESP-IDF Environment
-      uses: espressif/esp-idf-ci-action@v1
-      with:
-        esp_idf_version: 'v5.1.2'
-        target: 'esp32s3'
-        path: 'micropython/ports/esp32'
-        sdkconfig_options: 'CONFIG_ESP32S3_DEFAULT_PSRAM_OPI=y'
+    # 4. 【核心步骤】把开启 OPI PSRAM 的配置写进源码目录，让编译器自动读取
+    - name: Write OPI PSRAM configuration
+      run: |
+        mkdir -p micropython/ports/esp32/boards/ESP32_GENERIC_S3
+        echo "CONFIG_ESP32S3_DEFAULT_PSRAM_OPI=y" > micropython/ports/esp32/boards/ESP32_GENERIC_S3/sdkconfig.defaults
 
-    # 5. 开始云端全速编译
+    # 5. 手动安装最可靠的 ESP-IDF 环境 (跳过报错的Action，直接用官方的本地安装脚本)
+    - name: Install ESP-IDF manually
+      run: |
+        git clone -b v5.1.2 https://github.com/espressif/esp-idf.git
+        cd esp-idf
+        ./install.sh all
+        echo "IDF_PATH=$(pwd)" >> $GITHUB_ENV
+        echo "$(pwd)/export.sh" >> $GITHUB_PATH
+
+    # 6. 开始最终编译 (此时 PSRAM 配置完美写入，彻底解决引脚冲突)
     - name: Compile MicroPython with Camera
       run: |
-        rm -rf lockfiles managed_components
+        cd micropython/ports/esp32
         make submodules
         make BOARD=ESP32_GENERIC_S3 USER_C_MODULES=${{ github.workspace }}/micropython-camera-driver/src/micropython.cmake -j4
       working-directory: micropython/ports/esp32
 
-    # 6. 上传固件成品
+    # 7. 下载成品
     - name: Upload Firmware
       uses: actions/upload-artifact@v4
       with:
-        name: micropython-s3-camera-firmware
+        name: micropython-s3-ov7670-firmware
         path: micropython/ports/esp32/build-ESP32_GENERIC_S3/firmware.bin
