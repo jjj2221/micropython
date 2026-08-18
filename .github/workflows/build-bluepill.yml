@@ -1,0 +1,53 @@
+name: Build Blue Pill Firmware
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+  # 允许你从 Actions 标签页手动触发此工作流
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+
+    steps:
+    # 1. 检出你的仓库（包含了 Blue Pill 的板级定义）
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    # 2. 安装 ARM 交叉编译工具链
+    - name: Install ARM GCC
+      run: |
+        sudo apt-get update
+        sudo apt-get install gcc-arm-none-eabi binutils-arm-none-eabi
+
+    # 3. 安装其他依赖
+    - name: Install dependencies
+      run: |
+        sudo apt-get install build-essential libffi-dev pkg-config
+
+    # 4. 编译 mpy-cross (MicroPython 交叉编译器)
+    - name: Build mpy-cross
+      run: |
+        make -C mpy-cross
+
+    # 5. 更新子模块 (submodules)
+    - name: Update submodules
+      run: |
+        cd ports/stm32
+        make BOARD=BLUE_PILL_F103C8 submodules
+
+    # 6. 编译 Blue Pill 固件
+    - name: Build firmware
+      run: |
+        cd ports/stm32
+        make BOARD=BLUE_PILL_F103C8
+
+    # 7. 上传固件作为 Action 的 Artifact
+    - name: Upload firmware
+      uses: actions/upload-artifact@v4
+      with:
+        name: bluepill-firmware
+        path: ports/stm32/build-BLUE_PILL_F103C8/firmware.*
